@@ -1,0 +1,124 @@
+#!/usr/bin/perl -w
+
+#perltags - tag perlfiles
+#Daniel Bretoi, Jan 2001  daniel@netwalk.org
+##############################################################################
+
+##############################################################################
+=pod
+
+=head1 NAME
+
+perltags
+
+=head1 README
+
+perltags - makes tags files for perl (ctags for C/C++). A tags file gives 
+the locations of subs in a group of files.  Each line of the tags file 
+contains the sub name, the file in which it is defined, and a search 
+pattern for the object definition, separated by white-space.
+
+Copyright (C) 2001, 2002 Daniel Bretoi. All rights reserved.
+This program is free software, distribute it anyway you like, but you 
+must keep this copyright notice with the file.
+
+=head1 SYNOPSIS
+
+perltags [-ravh] <regex>
+
+=head1 OPTIONS
+
+        -r      recursive tagging
+        -a      append to tags file
+        -v      verbose mode
+        -h      help
+ 
+=head1 EXAMPLE
+
+
+perltags -rv \.cgi$ \.pl$ \.pm$
+
+Tags all files ending with .cgi .pl and .pm recursivly
+and show which files are being processed
+
+=head1 OUTPUT
+
+Creates or appends to a tags file in the current directory.
+
+=head1 NOTES
+
+Made by Daniel Bretoi <daniel@netwalk.org>
+
+Feel free to send any improvements or suggestions to the author.
+
+=head1 HISTORY
+
+sept 25, 2001: just modded the pods
+
+=pod SCRIPT CATEGORIES
+
+CPAN/Administrative
+Perl/Programming
+
+=cut
+###############################################################################
+use strict;
+use Cwd;
+use File::Find;
+
+unless ($ARGV[0]) { &usage_end; }
+
+my $prune=1;
+my ($warn,$verbose);
+
+for (@ARGV) {
+   if (/^-(.*)/) {
+      my $qp = $1;
+      if ($qp =~ /[^ravh]/) { print "invalid switch -$qp\n\n"; &usage_end; }
+      if ($qp =~ /h/) { &usage_end;exit; } 
+      if ($qp =~ /r/) { $prune=0; } 
+      if ($qp =~ /a/) { open TAGS,"| sort >>tags"; } 
+      if ($qp =~ /v/) { $verbose=1; } 
+   }
+}
+
+unless (fileno TAGS) { open TAGS,"| sort >tags"; }
+
+find(\&Wanted,".");
+
+sub Wanted {
+
+
+	my $file = $_;
+
+	if ((-d $file) && ($file !~ /^\.$/)) { $File::Find::prune=$prune; }
+
+	for (@ARGV) {
+   	if (/^-(.*)/) { next; }
+		if ($file =~ /$_/) {
+			if (-d $file) {next;}
+			if ($verbose) {print "Tagging $file\n";}
+			if (-r $file) {open FH,"<$file";} else {$warn=1;}
+			$file = cwd . "/$file";
+			if (fileno FH) { for (<FH>) { print TAGS "$1\t$file\t/^$&/;\"\n" if /^sub\s+([\w_\d]+).*/; }}
+		}
+	}
+}
+
+if ($warn) { print "Some of these files were not readable.\nThose files have not been tagged.\n";}
+	close TAGS;
+	close FH;
+
+sub usage_end {
+   print "Usage: $0 [options] <files> \n";
+   print "Where <files> is stated as a regexp\n";
+   print "\tOptions:\n";
+   print "\t-r\trecursive tagging\n";
+   print "\t-a\tappend to tags file\n";
+   print "\t-v\tverbose mode\n";
+   print "\t-h\tthis help\n\n";
+   print "Example:\n";
+   print "$0 \\.cgi\$\n";
+   print "Tags all .cgi files recursivly.\n";
+   exit;
+}
